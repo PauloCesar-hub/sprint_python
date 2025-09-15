@@ -17,7 +17,7 @@ Ele salva os dados localmente em arquivos CSV e permite visualizações gráfica
 
 📁 Exportação do ranking consolidado em CSV
 
-main
+---
 
 🧩 Estrutura do Projeto
 pythonV2/
@@ -27,6 +27,7 @@ pythonV2/
 └── data/
     ├── jogadoras.csv     # Banco de dados local das jogadoras
     └── partidas.csv      # Banco de dados local das partidas
+    
 ---
 ## 🧪 Requisitos
 
