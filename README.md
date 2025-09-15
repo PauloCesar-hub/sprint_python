@@ -77,6 +77,35 @@ matplotlib>=3.7.0
 
 ------------------------------------------------------------------------
 
+## 🧮 Fórmula de Score (padrão)
+```
+score = (gols * 4) + (assistencias * 3) + (minutos / 90) * 0.5
+```
+> Você pode trocar esses pesos dentro do código (função `calcular_score`).
+------------------------------------------------------------------------
+
+
+## 🗃️ Dados de exemplo
+- Ao rodar a primeira vez, os arquivos `data/jogadoras.csv` e `data/partidas.csv` são criados automaticamente.
+- Você pode alimentar pela CLI ou editar via Excel/Google Sheets (mantenha os cabeçalhos!).
+
+- 
+------------------------------------------------------------------------
+
+
+## 📈 Gráficos
+- A opção de gráfico usa `matplotlib`. Se não quiser gráficos, basta não instalar a lib que o app funciona do mesmo jeito.
+------------------------------------------------------------------------
+
+
+## 🧱 Roadmap de melhorias (ideias simples)
+- API Flask com endpoints `/jogadoras`, `/partidas`, `/ranking`
+- Persistência em SQLite (via `sqlite3`)
+- Importar dados de campeonatos (CSV/planilhas) para automatizar
+- Métricas avançadas por posição (ex.: Goleira: defesas, SG; Meia: passes-chave; etc.)
+
+
+------------------------------------------------------------------------
 ## 📤 Exportação e Dados
 
 -   Os dados ficam salvos localmente na pasta `data/`.
