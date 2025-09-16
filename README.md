@@ -114,6 +114,15 @@ score = (gols * 4) + (assistencias * 3) + (minutos / 90) * 0.5
 
 ------------------------------------------------------------------------
 
+## 👨‍💻 Autores
+
+- Paulo Cesar de Govea Junior - (RM:566034)
+- Guilherme Vilela Perez - (RM:564422)
+- Gustavo Panham Dourado - (RM:563904)
+- Christian Schunck de Almeida - (RM:563850)
+- Thomas Jeferson Santana Wang - (RM565104)
+  
+------------------------------------------------------------------------
 ## 📄 Licença
 
 Projeto criado para fins educativos e sem fins lucrativos.\
