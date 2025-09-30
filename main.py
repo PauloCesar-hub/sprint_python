@@ -1,29 +1,40 @@
+
 import os
 import csv
 from datetime import datetime
 from collections import defaultdict
 
+# Diretórios e arquivos de armazenamento
 DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
 JOGADORAS_CSV = os.path.join(DATA_DIR, "jogadoras.csv")
 PARTIDAS_CSV = os.path.join(DATA_DIR, "partidas.csv")
 
 def init_storage():
+    """
+    Cria a pasta e os arquivos CSV caso não existam.
+    """
     os.makedirs(DATA_DIR, exist_ok=True)
+    # Cria arquivo de jogadoras com cabeçalho
     if not os.path.exists(JOGADORAS_CSV):
         with open(JOGADORAS_CSV, "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
             w.writerow(["id","nome","posicao","time"])
+    # Cria arquivo de partidas com cabeçalho
     if not os.path.exists(PARTIDAS_CSV):
         with open(PARTIDAS_CSV, "w", newline="", encoding="utf-8") as f:
             w = csv.writer(f)
             w.writerow(["id","jogadora_id","data","gols","assistencias","minutos"])
 
 def ler_jogadoras():
+    """Lê e retorna a lista de jogadoras do CSV."""
     with open(JOGADORAS_CSV, newline="", encoding="utf-8") as f:
         r = csv.DictReader(f)
         return list(r)
 
 def salvar_jogadora(nome, posicao, time):
+    """
+    Adiciona uma nova jogadora no CSV e retorna o ID atribuído.
+    """
     jogadoras = ler_jogadoras()
     new_id = 1 + max([int(j["id"]) for j in jogadoras], default=0)
     with open(JOGADORAS_CSV, "a", newline="", encoding="utf-8") as f:
@@ -32,40 +43,56 @@ def salvar_jogadora(nome, posicao, time):
     return new_id
 
 def ler_partidas():
+    """Lê e retorna a lista de partidas do CSV."""
     with open(PARTIDAS_CSV, newline="", encoding="utf-8") as f:
         r = csv.DictReader(f)
         return list(r)
 
 def salvar_partida(jogadora_id, data_str, gols, assistencias, minutos):
+    """
+    Registra uma nova partida associada a uma jogadora.
+    """
     partidas = ler_partidas()
     new_id = 1 + max([int(p["id"]) for p in partidas], default=0)
     
+    # Valida formato da data
     try:
         _ = datetime.strptime(data_str, "%Y-%m-%d")
     except ValueError:
         raise ValueError("Data inválida. Use o formato YYYY-MM-DD.")
+    
+    # Salva no CSV
     with open(PARTIDAS_CSV, "a", newline="", encoding="utf-8") as f:
         w = csv.writer(f)
         w.writerow([new_id, jogadora_id, data_str, gols, assistencias, minutos])
     return new_id
 
+# Estrutura simples de usuário (não implementada neste código)
 usuario = {
     "login": "",
     "senha": ""
 }   
 
 def calcular_score(gols, assistencias, minutos):
+    """
+    Calcula o score de uma jogadora com base em gols, assistências e minutos jogados.
+    Fórmula: gols*4 + assistências*3 + (minutos/90)*0.5
+    """
     return (gols * 4) + (assistencias * 3) + (minutos / 90.0) * 0.5
 
 def consolidar_estatisticas():
+    """
+    Consolida as estatísticas de todas as jogadoras:
+    gols, assistências, minutos, jogos e score acumulado.
+    """
     jogadoras = {int(j["id"]): j for j in ler_jogadoras()}
     base = {jid: {"nome": j["nome"], "posicao": j["posicao"], "time": j["time"],
                   "gols": 0, "assistencias": 0, "minutos": 0, "jogos": 0, "score": 0.0}
             for jid, j in jogadoras.items()}
+    
     for p in ler_partidas():
         jid = int(p["jogadora_id"])
-        if jid not in base:
-            
+        if jid not in base:  # Ignora partidas de jogadoras não cadastradas
             continue
         g = int(p["gols"]); a = int(p["assistencias"]); m = int(p["minutos"])
         base[jid]["gols"] += g
@@ -76,6 +103,9 @@ def consolidar_estatisticas():
     return base
 
 def ranking(top_n=20):
+    """
+    Retorna o ranking das jogadoras com base no score.
+    """
     estat = consolidar_estatisticas()
     linhas = []
     for jid, d in estat.items():
@@ -90,10 +120,14 @@ def ranking(top_n=20):
             "minutos": d["minutos"],
             "score": round(d["score"], 2)
         })
+    # Ordena por score decrescente
     linhas.sort(key=lambda x: x["score"], reverse=True)
     return linhas[:top_n]
 
 def estatisticas_jogadora(jid):
+    """
+    Retorna estatísticas consolidadas + lista de partidas de uma jogadora específica.
+    """
     jid = int(jid)
     estat = consolidar_estatisticas().get(jid)
     if not estat:
@@ -104,6 +138,9 @@ def estatisticas_jogadora(jid):
     return estat, partidas
 
 def exportar_consolidado_csv(path):
+    """
+    Exporta o ranking completo para um arquivo CSV externo.
+    """
     linhas = ranking(top_n=10**6)  
     campos = ["id","nome","time","posicao","jogos","gols","assistencias","minutos","score"]
     with open(path, "w", newline="", encoding="utf-8") as f:
@@ -112,6 +149,7 @@ def exportar_consolidado_csv(path):
         w.writerows(linhas)
 
 def menu():
+    """Exibe o menu principal de opções."""
     print("\n=== PASSA A BOLA — Ranking & Estatísticas (Futebol Feminino) ===")
     print("1) Adicionar jogadora")
     print("2) Registrar partida")
@@ -122,6 +160,9 @@ def menu():
     print("0) Sair")
 
 def escolher_jogadora():
+    """
+    Mostra lista de jogadoras e permite escolher uma pelo ID.
+    """
     jogadoras = ler_jogadoras()
     if not jogadoras:
         print("Nenhuma jogadora cadastrada.")
@@ -137,7 +178,10 @@ def escolher_jogadora():
     ok = any(int(j["id"]) == jid for j in jogadoras)
     return jid if ok else None
 
+# ====== Ações de menu ======
+
 def acao_adicionar_jogadora():
+    """Fluxo para cadastrar uma nova jogadora."""
     nome = input("Nome: ").strip()
     pos = input("Posição (ex.: Atacante, Meia, Zagueira, Goleira): ").strip()
     time = input("Time/Seleção: ").strip()
@@ -145,6 +189,7 @@ def acao_adicionar_jogadora():
     print(f"✅ Jogadora adicionada com ID {jid}.")
 
 def acao_registrar_partida():
+    """Fluxo para registrar uma partida."""
     jid = escolher_jogadora()
     if not jid:
         print("Operação cancelada.")
@@ -164,6 +209,7 @@ def acao_registrar_partida():
         print(f"Erro: {e}")
 
 def acao_ver_ranking():
+    """Exibe o ranking formatado no console."""
     linhas = ranking()
     if not linhas:
         print("Sem dados para ranking.")
@@ -174,6 +220,7 @@ def acao_ver_ranking():
         print(f'{i:>2} {l["nome"]:<22.22} {l["time"]:<14.14} {l["posicao"]:<10.10} {l["jogos"]:>2} {l["gols"]:>2} {l["assistencias"]:>2} {l["minutos"]:>5} {l["score"]:>7.2f}')
 
 def acao_estatisticas_jogadora():
+    """Exibe estatísticas detalhadas de uma jogadora."""
     jid = escolher_jogadora()
     if not jid:
         print("Operação cancelada.")
@@ -192,6 +239,10 @@ def acao_estatisticas_jogadora():
             print(f'{p["data"]} — G:{p["gols"]} A:{p["assistencias"]} Min:{p["minutos"]}')
 
 def acao_grafico():
+    """
+    Plota gráficos de evolução (gols e assistências por jogo).
+    Necessita da biblioteca matplotlib.
+    """
     try:
         import matplotlib.pyplot as plt
     except Exception:
@@ -205,11 +256,12 @@ def acao_grafico():
     if not partidas:
         print("Sem partidas para plotar.")
         return
+    
+    # Gols por jogo
     datas = [p["data"] for p in partidas]
     gols = [int(p["gols"]) for p in partidas]
     assist = [int(p["assistencias"]) for p in partidas]
 
-    
     plt.figure()
     plt.plot(datas, gols, marker="o")
     plt.title("Gols por Jogo")
@@ -219,7 +271,7 @@ def acao_grafico():
     plt.tight_layout()
     plt.show()
 
-    
+    # Assistências por jogo
     plt.figure()
     plt.plot(datas, assist, marker="o")
     plt.title("Assistências por Jogo")
@@ -230,11 +282,15 @@ def acao_grafico():
     plt.show()
 
 def acao_exportar():
+    """Exporta o ranking consolidado para CSV dentro da pasta data."""
     path = os.path.join(DATA_DIR, "consolidado.csv")
     exportar_consolidado_csv(path)
     print(f"✅ Exportado para {path}")
 
+# ====== Programa principal ======
+
 def main():
+    """Loop principal que gerencia o menu do sistema."""
     init_storage()
     while True:
         menu()
