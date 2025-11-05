@@ -1,129 +1,117 @@
-# 🏟️ Passa a Bola --- Ranking & Estatísticas do Futebol Feminino
+# 📊 Sistema de Gerenciamento de Jogadoras e Estatísticas de Partidas
 
-Este projeto é uma aplicação de terminal em Python para **gerenciar
-jogadoras, registrar partidas e gerar rankings e estatísticas
-consolidadas** do futebol feminino.\
-Ele salva os dados localmente em arquivos CSV e permite visualizações
-gráficas da evolução de gols e assistências.
+Este projeto é um sistema em **Python** para gerenciamento de jogadoras de futebol e registro de partidas, permitindo o acompanhamento de desempenho, estatísticas e geração de gráficos visuais de evolução.
 
-------------------------------------------------------------------------
+O sistema trabalha com as seguintes funcionalidades principais:
+- Cadastro, consulta, edição e exclusão de jogadoras (CRUD completo)
+- Registro detalhado de partidas (gols, assistências, etc.)
+- Calculadora de score para ranking geral
+- Geração de gráficos com `matplotlib`
+- Exportação dos dados em `.json` (persistência local)
 
-## ⚙️ Funcionalidades Principais
+---
 
--   📋 Cadastro de jogadoras (nome, posição e time/seleção)\
--   📝 Registro de partidas com data, gols, assistências e minutos
-    jogados\
--   📊 Geração de ranking por pontuação (score calculado com base no
-    desempenho)\
--   📈 Exibição de estatísticas individuais e médias por jogo\
--   🖼️ Geração opcional de gráficos (gols e assistências por partida)\
--   📁 Exportação do ranking consolidado em CSV
+## 🏗️ Estrutura do Projeto
 
-------------------------------------------------------------------------
+sprint_python/
+│
+├── data/
+│ └── jogadores.json # Base de dados local
+│
+├── graficos/ # Pasta onde os gráficos PNG são salvos
+│
+├── main.py # Código principal do sistema (menu)
+├── jogadores.py # Funções de CRUD das jogadoras
+├── partidas.py # Registro e controle de partidas
+├── estatisticas.py # Cálculos e ranking
+├── graficos.py # Funções de geração de gráficos
+│
+└── README.md # Documentação
 
-## 🧩 Estrutura do Projeto
+yaml
+Copiar código
 
-    pythonV2/
-    │
-    ├── main.py               # Código principal e menu de interação
-    ├── requirements.txt      # Dependências necessárias
-    └── data/
-        ├── jogadoras.csv     # Banco de dados local das jogadoras
-        └── partidas.csv      # Banco de dados local das partidas
+---
 
-------------------------------------------------------------------------
+## 🛠️ Tecnologias e Bibliotecas Utilizadas
 
-## 🧪 Requisitos
+| Tecnologia | Uso |
+|-----------|-----|
+| Python 3  | Linguagem principal |
+| `json`    | Salvamento dos dados |
+| `matplotlib` | Geração de gráficos |
+| `os`      | Manipulação de arquivos e diretórios |
 
--   Python 3.9+\
--   Bibliotecas listadas em `requirements.txt`:
+---
 
-``` txt
-pandas>=2.1.0
-matplotlib>=3.7.0
-```
+## 🚀 Como Executar o Projeto
 
-------------------------------------------------------------------------
+### **1. Instale o Python (se necessário)**
+https://www.python.org/downloads/
 
-## 🚀 Como Executar
+### **2. Instale as dependências**
+```bash
+pip install matplotlib
+3. Execute o sistema
+bash
+Copiar código
+python main.py
+🎮 Como Usar (Menu Principal)
+Ao abrir o sistema, você verá um menu como este:
 
-1.  Instale as dependências:
+Copiar código
+1) Cadastrar jogadora
+2) Listar jogadoras
+3) Editar jogadora
+4) Excluir jogadora
+5) Registrar partida
+6) Listar partidas
+7) Mostrar ranking geral
+11) Gráfico - Evolução por jogadora
+12) Gráfico - Ranking geral
+0) Sair
+📈 Gráficos Disponíveis
+1) Evolução por Jogadora
+Mostra o desempenho da jogadora ao longo das partidas:
 
-    ``` bash
-    pip install -r requirements.txt
-    ```
+Linha de Gols
 
-2.  Execute o sistema:
+Linha de Assistências
 
-    ``` bash
-    python main.py
-    ```
+Gerado automaticamente e salvo em:
 
-3.  Use o menu interativo para navegar pelas opções.
+bash
+Copiar código
+/graficos/evolucao_nome_da_jogadora.png
+2) Ranking Geral
+Compara o score total de todas jogadoras cadastradas.
 
-------------------------------------------------------------------------
+Salvo em:
 
-## 📝 Menu Principal
+bash
+Copiar código
+/graficos/ranking.png
+🏅 Cálculo do Score
+O score total da jogadora segue a seguinte fórmula:
 
-  Opção   Ação
-  ------- -----------------------------------------------
-  1       Adicionar jogadora
-  2       Registrar partida
-  3       Ver ranking
-  4       Ver estatísticas de uma jogadora
-  5       Gerar gráfico de evolução (gols/assistências)
-  6       Exportar consolidado CSV
-  0       Sair
+ini
+Copiar código
+Score = (Gols × 2) + Assistências
+📦 Backup e Persistência
+Todos os dados são salvos no arquivo:
 
-------------------------------------------------------------------------
+bash
+Copiar código
+data/jogadores.json
+Ele é atualizado automaticamente conforme o CRUD é utilizado.
 
-## 🧮 Fórmula de Score (padrão)
-```
-score = (gols * 4) + (assistencias * 3) + (minutos / 90) * 0.5
-```
-> Você pode trocar esses pesos dentro do código (função `calcular_score`).
-------------------------------------------------------------------------
+👥 Autores
+Paulo Cesar de Govea Junior - (RM:566034)
 
+Guilherme Vilela Perez - (RM:564422)
 
-## 🗃️ Dados de exemplo
-- Ao rodar a primeira vez, os arquivos `data/jogadoras.csv` e `data/partidas.csv` são criados automaticamente.
-- Você pode alimentar pela CLI ou editar via Excel/Google Sheets (mantenha os cabeçalhos!).
+Gustavo Panham Dourado - (RM:563904)
 
-- 
-------------------------------------------------------------------------
+Christian Schunck de Almeida - (RM:563850)
 
-
-## 📈 Gráficos
-- A opção de gráfico usa `matplotlib`. Se não quiser gráficos, basta não instalar a lib que o app funciona do mesmo jeito.
-------------------------------------------------------------------------
-
-
-## 🧱 Roadmap de melhorias (ideias simples)
-- API Flask com endpoints `/jogadoras`, `/partidas`, `/ranking`
-- Persistência em SQLite (via `sqlite3`)
-- Importar dados de campeonatos (CSV/planilhas) para automatizar
-- Métricas avançadas por posição (ex.: Goleira: defesas, SG; Meia: passes-chave; etc.)
-
-
-------------------------------------------------------------------------
-## 📤 Exportação e Dados
-
--   Os dados ficam salvos localmente na pasta `data/`.
--   O ranking consolidado pode ser exportado como
-    `data/consolidado.csv`.
-
-------------------------------------------------------------------------
-
-## 👨‍💻 Autores
-
-- Paulo Cesar de Govea Junior - (RM:566034)
-- Guilherme Vilela Perez - (RM:564422)
-- Gustavo Panham Dourado - (RM:563904)
-- Christian Schunck de Almeida - (RM:563850)
-- Thomas Jeferson Santana Wang - (RM565104)
-  
-------------------------------------------------------------------------
-## 📄 Licença
-
-Projeto criado para fins educativos e sem fins lucrativos.\
-Sinta-se livre para modificar e reutilizar.
+Thomas Jeferson Santana Wang - (RM565104)

@@ -1,261 +1,423 @@
+#!/usr/bin/env python3
+"""
+Passa a Bola - CLI completa com CRUD para jogadoras e partidas.
+Salva dados em CSV no diretório `data/`.
+
+Funcionalidades:
+ - CRUD completo para jogadoras (create, read/list, update, delete)
+ - CRUD completo para partidas (create, read/list, update, delete)
+ - Estatísticas agregadas (gols, assistências, minutos e score)
+ - Exportar CSVs de backup
+"""
 import os
 import csv
+import uuid
 from datetime import datetime
 from collections import defaultdict
+import matplotlib.pyplot as plt
 
-DATA_DIR = os.path.join(os.path.dirname(__file__), "data")
+BASE_DIR = os.path.dirname(__file__)
+DATA_DIR = os.path.join(BASE_DIR, "data")
 JOGADORAS_CSV = os.path.join(DATA_DIR, "jogadoras.csv")
 PARTIDAS_CSV = os.path.join(DATA_DIR, "partidas.csv")
 
-def init_storage():
+JOGADORAS_HEADERS = ["id","nome","posicao","time","created_at"]
+PARTIDAS_HEADERS = ["id","data","jogadora_id","gols","assistencias","minutos","observacoes","created_at"]
+
+def ensure_storage():
     os.makedirs(DATA_DIR, exist_ok=True)
     if not os.path.exists(JOGADORAS_CSV):
-        with open(JOGADORAS_CSV, "w", newline="", encoding="utf-8") as f:
-            w = csv.writer(f)
-            w.writerow(["id","nome","posicao","time"])
+        with open(JOGADORAS_CSV,"w",newline='',encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(JOGADORAS_HEADERS)
     if not os.path.exists(PARTIDAS_CSV):
-        with open(PARTIDAS_CSV, "w", newline="", encoding="utf-8") as f:
-            w = csv.writer(f)
-            w.writerow(["id","jogadora_id","data","gols","assistencias","minutos"])
+        with open(PARTIDAS_CSV,"w",newline='',encoding='utf-8') as f:
+            writer = csv.writer(f)
+            writer.writerow(PARTIDAS_HEADERS)
 
-def ler_jogadoras():
-    with open(JOGADORAS_CSV, newline="", encoding="utf-8") as f:
-        r = csv.DictReader(f)
-        return list(r)
+def read_csv(path):
+    rows = []
+    if not os.path.exists(path):
+        return rows
+    with open(path,newline='',encoding='utf-8') as f:
+        reader = csv.DictReader(f)
+        for r in reader:
+            rows.append(r)
+    return rows
 
-def salvar_jogadora(nome, posicao, time):
-    jogadoras = ler_jogadoras()
-    new_id = 1 + max([int(j["id"]) for j in jogadoras], default=0)
-    with open(JOGADORAS_CSV, "a", newline="", encoding="utf-8") as f:
-        w = csv.writer(f)
-        w.writerow([new_id, nome.strip(), posicao.strip(), time.strip()])
-    return new_id
+def write_csv(path, rows, headers):
+    with open(path,"w",newline='',encoding='utf-8') as f:
+        writer = csv.DictWriter(f, fieldnames=headers)
+        writer.writeheader()
+        for r in rows:
+            writer.writerow(r)
 
-def ler_partidas():
-    with open(PARTIDAS_CSV, newline="", encoding="utf-8") as f:
-        r = csv.DictReader(f)
-        return list(r)
-
-def salvar_partida(jogadora_id, data_str, gols, assistencias, minutos):
-    partidas = ler_partidas()
-    new_id = 1 + max([int(p["id"]) for p in partidas], default=0)
-    
-    try:
-        _ = datetime.strptime(data_str, "%Y-%m-%d")
-    except ValueError:
-        raise ValueError("Data inválida. Use o formato YYYY-MM-DD.")
-    with open(PARTIDAS_CSV, "a", newline="", encoding="utf-8") as f:
-        w = csv.writer(f)
-        w.writerow([new_id, jogadora_id, data_str, gols, assistencias, minutos])
-    return new_id
-
-usuario = {
-    "login": "",
-    "senha": ""
-}   
-
-def calcular_score(gols, assistencias, minutos):
-    return (gols * 4) + (assistencias * 3) + (minutos / 90.0) * 0.5
-
-def consolidar_estatisticas():
-    jogadoras = {int(j["id"]): j for j in ler_jogadoras()}
-    base = {jid: {"nome": j["nome"], "posicao": j["posicao"], "time": j["time"],
-                  "gols": 0, "assistencias": 0, "minutos": 0, "jogos": 0, "score": 0.0}
-            for jid, j in jogadoras.items()}
-    for p in ler_partidas():
-        jid = int(p["jogadora_id"])
-        if jid not in base:
-            
-            continue
-        g = int(p["gols"]); a = int(p["assistencias"]); m = int(p["minutos"])
-        base[jid]["gols"] += g
-        base[jid]["assistencias"] += a
-        base[jid]["minutos"] += m
-        base[jid]["jogos"] += 1
-        base[jid]["score"] += calcular_score(g, a, m)
-    return base
-
-def ranking(top_n=20):
-    estat = consolidar_estatisticas()
-    linhas = []
-    for jid, d in estat.items():
-        linhas.append({
-            "id": jid,
-            "nome": d["nome"],
-            "time": d["time"],
-            "posicao": d["posicao"],
-            "jogos": d["jogos"],
-            "gols": d["gols"],
-            "assistencias": d["assistencias"],
-            "minutos": d["minutos"],
-            "score": round(d["score"], 2)
-        })
-    linhas.sort(key=lambda x: x["score"], reverse=True)
-    return linhas[:top_n]
-
-def estatisticas_jogadora(jid):
-    jid = int(jid)
-    estat = consolidar_estatisticas().get(jid)
-    if not estat:
-        return None, []
-    
-    partidas = [p for p in ler_partidas() if int(p["jogadora_id"]) == jid]
-    partidas.sort(key=lambda p: p["data"])
-    return estat, partidas
-
-def exportar_consolidado_csv(path):
-    linhas = ranking(top_n=10**6)  
-    campos = ["id","nome","time","posicao","jogos","gols","assistencias","minutos","score"]
-    with open(path, "w", newline="", encoding="utf-8") as f:
-        w = csv.DictWriter(f, fieldnames=campos)
-        w.writeheader()
-        w.writerows(linhas)
-
-def menu():
-    print("\n=== PASSA A BOLA — Ranking & Estatísticas (Futebol Feminino) ===")
-    print("1) Adicionar jogadora")
-    print("2) Registrar partida")
-    print("3) Ver ranking")
-    print("4) Ver estatísticas de uma jogadora")
-    print("5) Gerar gráfico de evolução (gols/assistências por jogo) [opcional]")
-    print("6) Exportar consolidado para CSV")
-    print("0) Sair")
-
-def escolher_jogadora():
-    jogadoras = ler_jogadoras()
-    if not jogadoras:
+# ---------- Jogadoras CRUD ----------
+def listar_jogadoras():
+    jogs = read_csv(JOGADORAS_CSV)
+    if not jogs:
         print("Nenhuma jogadora cadastrada.")
-        return None
-    print("\nJogadoras:")
-    for j in jogadoras:
-        print(f'[{j["id"]}] {j["nome"]} — {j["posicao"]} ({j["time"]})')
-    try:
-        jid = int(input("Digite o ID da jogadora: ").strip())
-    except ValueError:
-        print("ID inválido.")
-        return None
-    ok = any(int(j["id"]) == jid for j in jogadoras)
-    return jid if ok else None
+        return
+    print(f"{'ID':36} | Nome - Posição - Time")
+    print("-"*80)
+    for j in jogs:
+        print(f"{j['id']} | {j['nome']} - {j['posicao']} - {j['time']}")
 
-def acao_adicionar_jogadora():
+def criar_jogadora():
     nome = input("Nome: ").strip()
-    pos = input("Posição (ex.: Atacante, Meia, Zagueira, Goleira): ").strip()
+    if not nome:
+        print("Nome obrigatório.")
+        return
+    pos = input("Posição: ").strip()
     time = input("Time/Seleção: ").strip()
-    jid = salvar_jogadora(nome, pos, time)
-    print(f"✅ Jogadora adicionada com ID {jid}.")
+    new = {
+        "id": str(uuid.uuid4()),
+        "nome": nome,
+        "posicao": pos,
+        "time": time,
+        "created_at": datetime.utcnow().isoformat()
+    }
+    rows = read_csv(JOGADORAS_CSV)
+    rows.append(new)
+    write_csv(JOGADORAS_CSV, rows, JOGADORAS_HEADERS)
+    print("Jogadora criada com id:", new["id"])
 
-def acao_registrar_partida():
-    jid = escolher_jogadora()
+def buscar_jogadora_por_id(jid):
+    rows = read_csv(JOGADORAS_CSV)
+    for r in rows:
+        if r["id"] == jid:
+            return r
+    return None
+
+def atualizar_jogadora():
+    jid = input("ID da jogadora a atualizar: ").strip()
     if not jid:
-        print("Operação cancelada.")
+        print("ID obrigatório.")
         return
-    data = input("Data (YYYY-MM-DD): ").strip()
-    try:
-        gols = int(input("Gols: ").strip())
-        assist = int(input("Assistências: ").strip())
-        minutos = int(input("Minutos jogados: ").strip())
-    except ValueError:
-        print("Valores de gols/assistências/minutos precisam ser inteiros.")
-        return
-    try:
-        pid = salvar_partida(jid, data, gols, assist, minutos)
-        print(f"✅ Partida registrada com ID {pid}.")
-    except Exception as e:
-        print(f"Erro: {e}")
-
-def acao_ver_ranking():
-    linhas = ranking()
-    if not linhas:
-        print("Sem dados para ranking.")
-        return
-    print("\n-- RANKING --")
-    print(f'{"#":>2} {"Jogadora":<22} {"Time":<14} {"Pos":<10} {"J":>2} {"G":>2} {"A":>2} {"Min":>5} {"Score":>7}')
-    for i, l in enumerate(linhas, start=1):
-        print(f'{i:>2} {l["nome"]:<22.22} {l["time"]:<14.14} {l["posicao"]:<10.10} {l["jogos"]:>2} {l["gols"]:>2} {l["assistencias"]:>2} {l["minutos"]:>5} {l["score"]:>7.2f}')
-
-def acao_estatisticas_jogadora():
-    jid = escolher_jogadora()
-    if not jid:
-        print("Operação cancelada.")
-        return
-    estat, partidas = estatisticas_jogadora(jid)
-    if not estat:
+    rows = read_csv(JOGADORAS_CSV)
+    found = False
+    for r in rows:
+        if r["id"] == jid:
+            found = True
+            print("Deixe em branco para não alterar o campo.")
+            novo_nome = input(f"Nome [{r['nome']}]: ").strip()
+            novo_pos = input(f"Posição [{r['posicao']}]: ").strip()
+            novo_time = input(f"Time [{r['time']}]: ").strip()
+            if novo_nome:
+                r['nome'] = novo_nome
+            if novo_pos:
+                r['posicao'] = novo_pos
+            if novo_time:
+                r['time'] = novo_time
+            break
+    if not found:
         print("Jogadora não encontrada.")
         return
-    print(f'\nEstatísticas — {estat["nome"]} ({estat["posicao"]}, {estat["time"]})')
-    jogos = max(estat["jogos"], 1)
-    print(f'Totais: Gols {estat["gols"]}, Assistências {estat["assistencias"]}, Min {estat["minutos"]}, Jogos {estat["jogos"]}, Score {estat["score"]:.2f}')
-    print(f'Médias: G/J {estat["gols"]/jogos:.2f}, A/J {estat["assistencias"]/jogos:.2f}, Min/J {estat["minutos"]/jogos:.1f}')
-    if partidas:
-        print("\nÚltimos jogos:")
-        for p in partidas[-5:]:
-            print(f'{p["data"]} — G:{p["gols"]} A:{p["assistencias"]} Min:{p["minutos"]}')
+    write_csv(JOGADORAS_CSV, rows, JOGADORAS_HEADERS)
+    print("Atualização salva.")
 
-def acao_grafico():
-    try:
-        import matplotlib.pyplot as plt
-    except Exception:
-        print("matplotlib não está instalado. Rode: pip install matplotlib")
-        return
-    jid = escolher_jogadora()
+def excluir_jogadora():
+    jid = input("ID da jogadora a excluir: ").strip()
     if not jid:
-        print("Operação cancelada.")
+        print("ID obrigatório.")
         return
-    _, partidas = estatisticas_jogadora(jid)
-    if not partidas:
-        print("Sem partidas para plotar.")
+    # Remove partidas relacionadas também (cascade)
+    jogs = read_csv(JOGADORAS_CSV)
+    novas = [j for j in jogs if j['id'] != jid]
+    if len(novas) == len(jogs):
+        print("Jogadora não encontrada.")
         return
-    datas = [p["data"] for p in partidas]
-    gols = [int(p["gols"]) for p in partidas]
-    assist = [int(p["assistencias"]) for p in partidas]
+    write_csv(JOGADORAS_CSV, novas, JOGADORAS_HEADERS)
+    partidas = read_csv(PARTIDAS_CSV)
+    partidas = [p for p in partidas if p['jogadora_id'] != jid]
+    write_csv(PARTIDAS_CSV, partidas, PARTIDAS_HEADERS)
+    print("Jogadora e partidas relacionadas excluídas.")
 
-    
+# ---------- Partidas CRUD ----------
+def listar_partidas():
+    parts = read_csv(PARTIDAS_CSV)
+    if not parts:
+        print("Nenhuma partida registrada.")
+        return
+    print(f"{'ID':36} | Data | Jogadora ID | Gols | Assist | Min")
+    print("-"*100)
+    for p in parts:
+        print(f"{p['id']} | {p['data']} | {p['jogadora_id']} | {p['gols']} | {p['assistencias']} | {p['minutos']}")
+
+def criar_partida():
+    jog_id = input("ID da jogadora (use 'listar jogadoras' para ver IDs): ").strip()
+    if not buscar_jogadora_por_id(jog_id):
+        print("Jogadora não encontrada.")
+        return
+    data = input("Data (YYYY-MM-DD) [hoje]: ").strip()
+    if not data:
+        data = datetime.utcnow().date().isoformat()
+    # validate date
+    try:
+        datetime.fromisoformat(data)
+    except Exception:
+        print("Data inválida.")
+        return
+    def to_int(prompt):
+        v = input(prompt).strip()
+        if not v:
+            return "0"
+        try:
+            return str(int(v))
+        except:
+            print("Valor inválido, usando 0.")
+            return "0"
+    gols = to_int("Gols: ")
+    assists = to_int("Assistências: ")
+    minutos = to_int("Minutos jogados: ")
+    obs = input("Observações (opcional): ").strip()
+    new = {
+        "id": str(uuid.uuid4()),
+        "data": data,
+        "jogadora_id": jog_id,
+        "gols": gols,
+        "assistencias": assists,
+        "minutos": minutos,
+        "observacoes": obs,
+        "created_at": datetime.utcnow().isoformat()
+    }
+    rows = read_csv(PARTIDAS_CSV)
+    rows.append(new)
+    write_csv(PARTIDAS_CSV, rows, PARTIDAS_HEADERS)
+    print("Partida criada com id:", new["id"])
+
+def buscar_partida_por_id(pid):
+    parts = read_csv(PARTIDAS_CSV)
+    for p in parts:
+        if p["id"] == pid:
+            return p
+    return None
+
+def atualizar_partida():
+    pid = input("ID da partida a atualizar: ").strip()
+    if not pid:
+        print("ID obrigatório.")
+        return
+    parts = read_csv(PARTIDAS_CSV)
+    found = False
+    for p in parts:
+        if p["id"] == pid:
+            found = True
+            print("Deixe em branco para não alterar.")
+            novo_data = input(f"Data [{p['data']}]: ").strip()
+            if novo_data:
+                try:
+                    datetime.fromisoformat(novo_data)
+                    p['data'] = novo_data
+                except:
+                    print("Data inválida. Mantendo original.")
+            novo_jog = input(f"Jogadora ID [{p['jogadora_id']}]: ").strip()
+            if novo_jog:
+                if buscar_jogadora_por_id(novo_jog):
+                    p['jogadora_id'] = novo_jog
+                else:
+                    print("Jogadora nova não encontrada. Mantendo original.")
+            for field in ('gols','assistencias','minutos'):
+                novo = input(f"{field} [{p[field]}]: ").strip()
+                if novo:
+                    try:
+                        p[field] = str(int(novo))
+                    except:
+                        print(f"Valor inválido para {field}. Mantendo original.")
+            novo_obs = input(f"Observações [{p.get('observacoes','')}]: ").strip()
+            if novo_obs:
+                p['observacoes'] = novo_obs
+            break
+    if not found:
+        print("Partida não encontrada.")
+        return
+    write_csv(PARTIDAS_CSV, parts, PARTIDAS_HEADERS)
+    print("Partida atualizada.")
+
+def excluir_partida():
+    pid = input("ID da partida a excluir: ").strip()
+    if not pid:
+        print("ID obrigatório.")
+        return
+    parts = read_csv(PARTIDAS_CSV)
+    novas = [p for p in parts if p['id'] != pid]
+    if len(novas) == len(parts):
+        print("Partida não encontrada.")
+        return
+    write_csv(PARTIDAS_CSV, novas, PARTIDAS_HEADERS)
+    print("Partida excluída.")
+
+# ---------- Estatísticas ----------
+def calcular_estatisticas():
+    jogs = read_csv(JOGADORAS_CSV)
+    parts = read_csv(PARTIDAS_CSV)
+    stats = defaultdict(lambda: {"gols":0,"assistencias":0,"minutos":0,"partidas":0})
+    for p in parts:
+        jid = p['jogadora_id']
+        try:
+            gols = int(p.get('gols') or 0)
+            ass = int(p.get('assistencias') or 0)
+            mins = int(p.get('minutos') or 0)
+        except:
+            gols = ass = mins = 0
+        stats[jid]["gols"] += gols
+        stats[jid]["assistencias"] += ass
+        stats[jid]["minutos"] += mins
+        stats[jid]["partidas"] += 1
+    # join with players
+    result = []
+    for j in jogs:
+        jid = j['id']
+        s = stats[jid]
+        # score example: gols*4 + assist*3 + minutos/90
+        score = s["gols"]*4 + s["assistencias"]*3 + (s["minutos"]/90)
+        result.append({
+            "id": jid,
+            "nome": j["nome"],
+            "time": j.get("time",""),
+            "posicao": j.get("posicao",""),
+            "gols": s["gols"],
+            "assistencias": s["assistencias"],
+            "minutos": s["minutos"],
+            "partidas": s["partidas"],
+            "score": round(score,2)
+        })
+    # sort by score desc
+    result.sort(key=lambda x: x["score"], reverse=True)
+    return result
+
+def mostrar_ranking():
+    rank = calcular_estatisticas()
+    if not rank:
+        print("Sem dados para ranking.")
+        return
+    print(f"{'Pos':3} {'Nome':30} {'Gols':5} {'Ast':4} {'Min':5} {'Pts':6}")
+    print("-"*70)
+    for i,r in enumerate(rank, start=1):
+        print(f"{i:>3} {r['nome'][:30]:30} {r['gols']:>5} {r['assistencias']:>4} {r['minutos']:>5} {r['score']:>6}")
+
+# ---------- Export ----------
+def exportar_backup():
+    now = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    dest = os.path.join(BASE_DIR, f"backup_{now}.zip")
+    import zipfile
+    with zipfile.ZipFile(dest,'w') as z:
+        if os.path.exists(JOGADORAS_CSV):
+            z.write(JOGADORAS_CSV, arcname="jogadoras.csv")
+        if os.path.exists(PARTIDAS_CSV):
+            z.write(PARTIDAS_CSV, arcname="partidas.csv")
+    print("Backup criado:", dest)
+
+# ---------- CLI ----------
+
+
+# ---------- Gráficos ----------
+def grafico_evolucao_jogadora():
+    jog_id = input("ID da jogadora (use 'Listar jogadoras' para ver IDs): ").strip()
+    if not buscar_jogadora_por_id(jog_id):
+        print("Jogadora não encontrada.")
+        return
+    parts = read_csv(PARTIDAS_CSV)
+    dados = [p for p in parts if p['jogadora_id'] == jog_id]
+    if not dados:
+        print("Sem partidas para esta jogadora.")
+        return
+    # Ordenar por data
+    try:
+        dados.sort(key=lambda x: x['data'])
+    except:
+        pass
+    gols = []
+    assists = []
+    labels = []
+    for p in dados:
+        labels.append(p['data'])
+        try:
+            gols.append(int(p['gols']))
+            assists.append(int(p['assistencias']))
+        except:
+            gols.append(0)
+            assists.append(0)
     plt.figure()
-    plt.plot(datas, gols, marker="o")
-    plt.title("Gols por Jogo")
-    plt.xlabel("Jogo (data)")
-    plt.ylabel("Gols")
-    plt.xticks(rotation=45, ha="right")
+    plt.plot(labels, gols, marker='o', label='Gols')
+    plt.plot(labels, assists, marker='o', label='Assistências')
+    plt.xlabel("Partidas (Data)")
+    plt.ylabel("Quantidade")
+    plt.title("Evolução da Jogadora")
+    plt.legend()
+    plt.xticks(rotation=45)
     plt.tight_layout()
     plt.show()
 
-    
+def grafico_ranking():
+    rank = calcular_estatisticas()
+    if not rank:
+        print("Sem dados para ranking.")
+        return
+    nomes = [r['nome'] for r in rank]
+    scores = [r['score'] for r in rank]
     plt.figure()
-    plt.plot(datas, assist, marker="o")
-    plt.title("Assistências por Jogo")
-    plt.xlabel("Jogo (data)")
-    plt.ylabel("Assistências")
-    plt.xticks(rotation=45, ha="right")
+    plt.bar(nomes, scores)
+    plt.xlabel("Jogadoras")
+    plt.ylabel("Score")
+    plt.title("Ranking Geral - Score")
+    plt.xticks(rotation=45)
     plt.tight_layout()
     plt.show()
 
-def acao_exportar():
-    path = os.path.join(DATA_DIR, "consolidado.csv")
-    exportar_consolidado_csv(path)
-    print(f"✅ Exportado para {path}")
+
+def mostrar_menu():
+    print("""
+=== PASSA A BOLA - Menu ===
+1) Listar jogadoras
+2) Criar jogadora
+3) Atualizar jogadora
+4) Excluir jogadora
+5) Listar partidas
+6) Criar partida
+7) Atualizar partida
+8) Excluir partida
+9) Mostrar ranking/estatísticas
+10) Exportar backup (zip)
+11) Gráfico - Evolução por Jogadora
+12) Gráfico - Ranking Geral
+0) Sair
+""")
 
 def main():
-    init_storage()
+    ensure_storage()
     while True:
-        menu()
+        mostrar_menu()
         op = input("Escolha: ").strip()
         if op == "1":
-            acao_adicionar_jogadora()
+            listar_jogadoras()
         elif op == "2":
-            acao_registrar_partida()
+            criar_jogadora()
         elif op == "3":
-            acao_ver_ranking()
+            atualizar_jogadora()
         elif op == "4":
-            acao_estatisticas_jogadora()
+            excluir_jogadora()
         elif op == "5":
-            acao_grafico()
+            listar_partidas()
         elif op == "6":
-            acao_exportar()
+            criar_partida()
+        elif op == "7":
+            atualizar_partida()
+        elif op == "8":
+            excluir_partida()
+        elif op == "9":
+            mostrar_ranking()
+        elif op == "10":
+            exportar_backup()
+        elif op == "11":
+            grafico_evolucao_jogadora()
+        elif op == "12":
+            grafico_ranking()
         elif op == "0":
             print("Até mais!")
             break
         else:
             print("Opção inválida.")
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()
